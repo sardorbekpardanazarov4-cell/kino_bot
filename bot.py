@@ -62,7 +62,7 @@ def callback(call):
         if clicks and all(clicks.values()):
             bot.send_message(chat_id, "✔️ Siz barcha kanallarga obuna boldingiz!\nEndi kino kodini kiriting:")
         else:
-            bot.send_message(chat_id, "❗ Iltimos, barcha kanallarga obuna bo‘ling!")
+            bot.send_message(chat_id, "❗ KINI KODNI KIRITING!")
         bot.answer_callback_query(call.id)
 
 # --- ADMIN: ADD KINO ---
