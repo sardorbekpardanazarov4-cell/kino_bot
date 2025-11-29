@@ -1,18 +1,21 @@
 import telebot
 from telebot import types
-from tinydb import TinyDB, Query
+from pymongo import MongoClient
 from collections import Counter
 
+# --- BOT PARAMETRLARI ---
 TOKEN = "8211203712:AAHdM1wShReC3Jq60qX_PR9XesR0xtsxSg0"
 ADMIN_ID = 8383448395
 
 bot = telebot.TeleBot(TOKEN)
 
-# --- TinyDB setup ---
-db = TinyDB("kino.json")
-kino_query = Query()
+# --- MONGODB SETUP ---
+MONGO_URI = "mongodb+srv://<username>:<password>@cluster0.mongodb.net/kino?retryWrites=true&w=majority"
+client = MongoClient(MONGO_URI)
+db = client.kino
+films = db.films  # Collection for movies
 
-# --- Kanal zayavka linklari ---
+# --- KANAL LINKLARI ---
 CHANNEL_LINKS = [
     "https://t.me/+njI2s4fSLbJlZTBi",
     "https://t.me/+JFubXpf3EY40M2U6",
@@ -21,12 +24,12 @@ CHANNEL_LINKS = [
 ]
 CHANNEL_KEYS = ["kanal1", "kanal2", "kanal3", "kanal4"]
 
-# --- Foydalanuvchi ma'lumotlari ---
+# --- FOYDALANUVCHI MA'LUMOTLARI ---
 user_clicks = {}
 user_list = set()
 code_usage = Counter()
 
-# --- /start ---
+# --- /START ---
 @bot.message_handler(commands=['start'])
 def start(msg):
     chat_id = msg.chat.id
@@ -49,12 +52,11 @@ def start(msg):
         reply_markup=markup
     )
 
-# --- Callback tugmalar ---
+# --- CALLBACK ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
     chat_id = call.message.chat.id
 
-    # Obuna bo‘ldim tugmasi
     if call.data == "check":
         clicks = user_clicks.get(chat_id, {})
         if clicks and all(clicks.values()):
@@ -63,7 +65,7 @@ def callback(call):
             bot.send_message(chat_id, "❗ Iltimos, barcha kanallarga obuna bo‘ling!")
         bot.answer_callback_query(call.id)
 
-# --- ADMIN /add kino qo‘shish ---
+# --- ADMIN: ADD KINO ---
 @bot.message_handler(commands=['add'])
 def admin_add(msg):
     if msg.from_user.id != ADMIN_ID:
@@ -85,18 +87,16 @@ def get_name(msg, video_id):
 
 def save_kino(msg, video_id, name):
     code = msg.text.strip()
-    # TinyDB ga saqlash
-    db.insert({'code': code, 'name': name, 'file_id': video_id})
+    films.insert_one({"code": code, "name": name, "file_id": video_id})
     bot.send_message(msg.chat.id, f"✅ Kino saqlandi!\n🎬 {name}\n🔑 Kod: {code}")
 
-# --- Foydalanuvchi kod yuborsa kino chiqarish ---
+# --- FOYDALANUVCHI KOD ORQALI KINO ---
 @bot.message_handler(func=lambda m: True)
 def send_kino(msg):
     code = msg.text.strip()
     code_usage[code] += 1
-    d = db.search(kino_query.code == code)
+    d = films.find_one({"code": code})
     if d:
-        d = d[0]
         bot.send_video(msg.chat.id, d["file_id"], caption=d["name"])
     else:
         bot.reply_to(msg, "❌ Bunday kod bo‘yicha kino topilmadi.")
@@ -108,13 +108,7 @@ def admin_stat(msg):
         return bot.reply_to(msg, "⚠️ Siz admin emassiz.")
 
     total_users = len(user_list)
-    total_kino = len(db)
-
-    kanal_stats = {k: 0 for k in CHANNEL_KEYS}
-    for uc in user_clicks.values():
-        for k in CHANNEL_KEYS:
-            if uc.get(k):
-                kanal_stats[k] += 1
+    total_kino = films.count_documents({})
 
     most_used = code_usage.most_common(5)
     most_used_text = "\n".join([f"{c[0]} — {c[1]} marta" for c in most_used]) if most_used else "Hali kod ishlatilmagan"
