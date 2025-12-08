@@ -18,7 +18,7 @@ CHANNEL_LINKS = [
     ("2-kanal", "https://t.me/+JFubXpf3EY40M2U6"),
     ("3-kanal", "https://t.me/+_PYMzySJjn9jM2U6"),
     ("4-kanal", "https://t.me/+R5IUtNr74rcwY2Y6"),
-    ("5-kanal", "https://t.me/+JFubXpf3EY40M2U6"),
+    ("5-kanal", "https://t.me/kinolar_proo"),
     ("Instagram", "https://www.instagram.com/kinolar_pro1?igsh=MXBjamU2cDZ5OWtzZw==")
 ]
 
