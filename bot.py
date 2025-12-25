@@ -1,13 +1,13 @@
+from flask import Flask, request
 import telebot
-from telebot import types
 import json
 import os
 
 # ============================
 # BOT SOZLAMALARI
 # ============================
-TOKEN = "8211203712:AAHdM1wShReC3Jq60qX_PR9XesR0xtsxSg0"
-ADMIN_ID = 8383448395
+TOKEN = os.environ.get("BOT_TOKEN")  # Railway Secrets orqali qo'yiladi
+ADMIN_ID = int(os.environ.get("ADMIN_ID", 0))  # Admin ID ni ham secret sifatida qo'yish tavsiya etiladi
 
 bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
 
@@ -19,9 +19,6 @@ USERS_FILE = "users.json"
 CHANNELS_FILE = "channels.json"
 CLICKS_FILE = "clicks.json"
 
-# ============================
-# YORDAMCHI FUNKSIYALAR
-# ============================
 def load_json(file, default):
     if not os.path.exists(file):
         return default
@@ -57,14 +54,14 @@ def start(msg):
     clicks[chat_id] = [0] * len(channels)
     save_json(CLICKS_FILE, clicks)
 
-    inline = types.InlineKeyboardMarkup()
+    inline = telebot.types.InlineKeyboardMarkup()
     for name, link in channels:
-        inline.add(types.InlineKeyboardButton(f"📌 {name}", url=link))
-    inline.add(types.InlineKeyboardButton("✔ Obuna bo‘ldim", callback_data="check"))
+        inline.add(telebot.types.InlineKeyboardButton(f"📌 {name}", url=link))
+    inline.add(telebot.types.InlineKeyboardButton("✔ Obuna bo‘ldim", callback_data="check"))
 
     bot.send_message(chat_id, "👇 Kanallar tugmalarini bosing:", reply_markup=inline)
 
-    user_kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    user_kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     bot.send_message(chat_id, "📩 Menyudan tanlang:", reply_markup=user_kb)
 
     if msg.from_user.id == ADMIN_ID:
@@ -74,7 +71,7 @@ def start(msg):
 # ADMIN PANEL
 # ============================
 def admin_panel(chat_id):
-    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("➕ Kino qo‘shish", "❌ Kino o‘chirish")
     kb.row("➕ Kanal qo‘shish", "❌ Kanal o‘chirish")
     kb.row("📊 Statistika")
@@ -203,7 +200,24 @@ def user_code(msg):
         bot.send_message(msg.chat.id, "❌ Bunday kod topilmadi!")
 
 # ============================
-# BOT ISHLASHI
+# FLASK + WEBHOOK
 # ============================
-print("BOT ISHLAMOQDA...")
-bot.infinity_polling()
+app = Flask(__name__)
+
+@app.route(f"/{TOKEN}", methods=["POST"])
+def webhook():
+    json_string = request.get_data().decode("utf-8")
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
+
+@app.route("/")
+def index():
+    return "Bot ishlamoqda ✅", 200
+
+# ============================
+# SERVERNI ISHLATISH
+# ============================
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
