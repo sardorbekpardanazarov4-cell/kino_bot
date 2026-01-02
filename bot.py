@@ -25,7 +25,7 @@ CHANNELS = [
     ["Kanal 1", "@kinolar_prooo"],
     ["Kanal 2", "@kinolar_proooo"],
     ["Kanal 3", "@kinolar_prooooo"],
-    ["Kanal 4", "@kinolar_proo"]
+    ["Kanal 4", "@kinolar_proo"],
 ]
 
 INSTAGRAM_LINK = "https://www.instagram.com/_pardanazarov1_/"
