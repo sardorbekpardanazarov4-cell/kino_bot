@@ -16,8 +16,19 @@ bot = telebot.TeleBot(TOKEN, parse_mode="HTML")
 # ============================
 DB_FILE = "kino_baza.json"
 USERS_FILE = "users.json"
-CHANNELS_FILE = "channels.json"
-CLICKS_FILE = "clicks.json"
+
+# ============================
+# KANALLAR (4 TA)
+# BOTNI SHULARGA ADMIN QILING
+# ============================
+CHANNELS = [
+    ["Kanal 1", "@kinolar_prooo"],
+    ["Kanal 2", "@kinolar_proooo"],
+    ["Kanal 3", "@kinolar_prooooo"],
+    ["Kanal 4", "@kinolar_proo"]
+]
+
+INSTAGRAM_LINK = "https://www.instagram.com/_pardanazarov1_/"
 
 # ============================
 # YORDAMCHI FUNKSIYALAR
@@ -32,43 +43,71 @@ def save_json(file, data):
     with open(file, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ============================
-# MA’LUMOTLAR
-# ============================
 kino_baza = load_json(DB_FILE, {})
 users = load_json(USERS_FILE, [])
-channels = load_json(CHANNELS_FILE, [
-    ["1-kanal", "https://t.me/kinolar_proo"],
-    ["Instagram", "https://www.instagram.com/_pardanazarov1_?igsh=MXBodWFtdWF3MDcwdA=="]
-])
-clicks = load_json(CLICKS_FILE, {})
+
+# ============================
+# OBUNANI REAL TEKSHIRISH
+# ============================
+def is_subscribed(user_id):
+    for name, channel in CHANNELS:
+        try:
+            member = bot.get_chat_member(channel, user_id)
+            if member.status not in ["member", "administrator", "creator"]:
+                return False
+        except:
+            return False
+    return True
 
 # ============================
 # START
 # ============================
 @bot.message_handler(commands=["start"])
 def start(msg):
-    chat_id = str(msg.chat.id)
+    chat_id = msg.chat.id
 
     if chat_id not in users:
         users.append(chat_id)
         save_json(USERS_FILE, users)
 
-    clicks[chat_id] = [0] * len(channels)
-    save_json(CLICKS_FILE, clicks)
+    kb = types.InlineKeyboardMarkup()
 
-    inline = types.InlineKeyboardMarkup()
-    for name, link in channels:
-        inline.add(types.InlineKeyboardButton(f"📌 {name}", url=link))
-    inline.add(types.InlineKeyboardButton("✔ Obuna bo‘ldim", callback_data="check"))
+    for name, channel in CHANNELS:
+        kb.add(
+            types.InlineKeyboardButton(
+                f"📢 {name}",
+                url=f"https://t.me/{channel.replace('@','')}"
+            )
+        )
 
-    bot.send_message(chat_id, "👇 Kanallar tugmalarini bosing:", reply_markup=inline)
+    kb.add(types.InlineKeyboardButton("📸 Instagram", url=INSTAGRAM_LINK))
+    kb.add(types.InlineKeyboardButton("✅ Tekshirish", callback_data="check_sub"))
 
-    user_kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    bot.send_message(chat_id, "📩 Menyudan tanlang:", reply_markup=user_kb)
+    bot.send_message(
+        chat_id,
+        "👇 Quyidagi kanallarga obuna bo‘ling:",
+        reply_markup=kb
+    )
 
     if msg.from_user.id == ADMIN_ID:
-        admin_panel(msg.chat.id)
+        admin_panel(chat_id)
+
+# ============================
+# OBUNANI TEKSHIRISH
+# ============================
+@bot.callback_query_handler(func=lambda c: c.data == "check_sub")
+def check_sub(call):
+    user_id = call.from_user.id
+
+    if is_subscribed(user_id):
+        bot.answer_callback_query(call.id, "✅ Obuna tasdiqlandi!")
+        bot.send_message(user_id, "🎬 Endi kino kodini yuboring!")
+    else:
+        bot.answer_callback_query(
+            call.id,
+            "❌ Hamma Telegram kanalga obuna bo‘ling!",
+            show_alert=True
+        )
 
 # ============================
 # ADMIN PANEL
@@ -76,24 +115,11 @@ def start(msg):
 def admin_panel(chat_id):
     kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
     kb.row("➕ Kino qo‘shish", "❌ Kino o‘chirish")
-    kb.row("➕ Kanal qo‘shish", "❌ Kanal o‘chirish")
     kb.row("📊 Statistika")
-    kb.row("📢 Reklama yuborish")
     bot.send_message(chat_id, "🔧 Admin panel:", reply_markup=kb)
 
 # ============================
-# OBUNA (FAKE)
-# ============================
-@bot.callback_query_handler(func=lambda c: c.data == "check")
-def check(call):
-    chat_id = str(call.message.chat.id)
-    clicks[chat_id] = [1] * len(channels)
-    save_json(CLICKS_FILE, clicks)
-    bot.answer_callback_query(call.id, "Qabul qilindi!")
-    bot.send_message(chat_id, "🎬 Endi kino kodini yuboring!")
-
-# ============================
-# ADMIN TUGMALARI
+# ADMIN BUYRUQLARI
 # ============================
 @bot.message_handler(func=lambda m: m.from_user.id == ADMIN_ID)
 def admin_buttons(msg):
@@ -106,20 +132,11 @@ def admin_buttons(msg):
         bot.send_message(msg.chat.id, "🗑 Kino kodini yuboring:")
         return bot.register_next_step_handler(msg, delete_kino)
 
-    if msg.text == "➕ Kanal qo‘shish":
-        bot.send_message(msg.chat.id, "📛 Kanal nomini yuboring:")
-        return bot.register_next_step_handler(msg, get_channel_name)
-
-    if msg.text == "❌ Kanal o‘chirish":
-        bot.send_message(msg.chat.id, "🔢 Kanal raqami (1,2,3):")
-        return bot.register_next_step_handler(msg, delete_channel)
-
     if msg.text == "📊 Statistika":
-        return send_stat(msg)
-
-    if msg.text == "📢 Reklama yuborish":
-        bot.send_message(msg.chat.id, "📢 Reklama matnini yuboring:")
-        return bot.register_next_step_handler(msg, send_advert)
+        bot.send_message(
+            msg.chat.id,
+            f"👥 Foydalanuvchilar: {len(users)}\n🎬 Kinolar: {len(kino_baza)}"
+        )
 
 # ============================
 # KINO QO‘SHISH
@@ -156,42 +173,7 @@ def delete_kino(msg):
         bot.send_message(msg.chat.id, "❌ Bunday kod yo‘q!")
 
 # ============================
-# KANAL QO‘SHISH / O‘CHIRISH
-# ============================
-def get_channel_name(msg):
-    name = msg.text
-    bot.send_message(msg.chat.id, "🔗 Kanal linki:")
-    bot.register_next_step_handler(msg, lambda m: save_channel(m, name))
-
-def save_channel(msg, name):
-    link = msg.text
-    channels.append([name, link])
-    save_json(CHANNELS_FILE, channels)
-    bot.send_message(msg.chat.id, "✅ Kanal qo‘shildi!")
-
-def delete_channel(msg):
-    try:
-        i = int(msg.text) - 1
-        removed = channels.pop(i)
-        save_json(CHANNELS_FILE, channels)
-        bot.send_message(msg.chat.id, f"❌ O‘chirildi: {removed[0]}")
-    except:
-        bot.send_message(msg.chat.id, "❌ Noto‘g‘ri raqam!")
-
-# ============================
-# STATISTIKA
-# ============================
-def send_stat(msg):
-    text = (
-        f"📊 STATISTIKA\n\n"
-        f"👥 Foydalanuvchilar: {len(users)}\n"
-        f"🎬 Kinolar: {len(kino_baza)}\n"
-        f"📌 Kanallar: {len(channels)}"
-    )
-    bot.send_message(msg.chat.id, text)
-
-# ============================
-# USER KOD YUBORADI
+# USER KINO KOD YUBORADI
 # ============================
 @bot.message_handler(func=lambda m: True)
 def user_code(msg):
@@ -200,10 +182,10 @@ def user_code(msg):
         d = kino_baza[code]
         bot.send_video(msg.chat.id, d["file_id"], caption=d["name"])
     else:
-        bot.send_message(msg.chat.id, "❌ Bunday kod topilmadi!")
+        bot.send_message(msg.chat.id, "❌ Bunday kino topilmadi!")
 
 # ============================
 # BOT ISHLASHI
 # ============================
-print("BOT ISHLAMOQDA...")
-bot.infinity_polling()
+print("✅ BOT ISHLAMOQDA...")
+bot.infinity_polling(timeout=60, long_polling_timeout=60)
