@@ -22,10 +22,7 @@ USERS_FILE = "users.json"
 # BOTNI SHULARGA ADMIN QILING
 # ============================
 CHANNELS = [
-    ["Kanal 1", "@kinolar_prooo"],
-    ["Kanal 2", "@kinolar_proooo"],
-    ["Kanal 3", "@kinolar_prooooo"],
-    ["Kanal 4", "@kinolar_proo"],
+    ["Kanal 1", "@cybex_uz"],
 ]
 
 INSTAGRAM_LINK = "https://www.instagram.com/_pardanazarov1_/"
